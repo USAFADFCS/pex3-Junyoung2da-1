@@ -1,12 +1,18 @@
 /** main.c
  * ===========================================================
- * Name: _______________________, __ ___ 2026
- * Section: CS483 / ____
+ * Name: C1C Andrew J. Kim, 23 April 2026
+ * Section: CS483 / M3
  * Project: PEX3 - Page Replacement Simulator
  * Purpose: Reads a BYU binary memory trace file and simulates
  *          LRU page replacement to measure fault rates across
  *          varying frame allocations.
- * Documentation: TBD
+ * Documentation:
+ * https://stackoverflow.com/questions/4083916/two-arguments-to-calloc
+ *      - Refreshed my memory on calloc arguments. Used to allocate faults array
+ * https://stackoverflow.com/questions/3209909/how-to-printf-unsigned-long-in-c
+ *      - Refreshed my memory on what to put after % for printing long ints
+ * https://www.youtube.com/watch?v=JboBgHqld2U
+ *      - Used video to figure out how to insert axis titles on Excel charts
  * =========================================================== */
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,7 +40,7 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    // Parse and validate frame size selection
+    // Parse and validate frame size selection 
     int menuOption = atoi(argv[2]);
     if (menuOption < 1 || menuOption > 4) {
         fprintf(stderr, "invalid frame size option: %s (must be 1-4)\n", argv[2]);
@@ -71,6 +77,17 @@ int main(int argc, char **argv) {
     //       and allocate the faults[] array.  faults[f] will hold the
     //       total number of page faults that occur when f frames are
     //       available.  Use calloc so all entries start at zero.
+    PageQueue* LRUqueue = pqInit(maxFrames);
+    unsigned long* faults = calloc(maxFrames + 1, sizeof(unsigned long));
+    // free everything if memory allocaiton fails
+    if (faults == NULL){
+        printf("memory allocation failed\n");
+        //close file and free memory
+        fclose(ifp);
+        pqFree(LRUqueue);
+        return -1;
+    }
+
 
     // Process each memory access from the trace file
     while (!feof(ifp)) {
@@ -93,6 +110,21 @@ int main(int argc, char **argv) {
         //                    (fault for any allocation with fewer than d+1 frames)
         //
         //       Update faults[] accordingly.
+        
+        long depth = pqAccess(LRUqueue, pageNum);
+        if (depth == -1){
+            //Miss: fault for every frame count
+            for (int f = 1; f <= maxFrames; ++f){
+                faults[f]++;
+            }
+        }
+        else{
+            //hit at depth d: fault for f <= d
+            for (int f = 1; f <= depth; ++f){
+                faults[f]++;
+            }
+        }
+        
 
     }
 
@@ -105,9 +137,16 @@ int main(int argc, char **argv) {
     // TODO: Loop from frame count 1 to maxFrames and print each row:
     //       printf("%d,%lu,%f\n", frameCount, faults[frameCount],
     //              (double)faults[frameCount] / (double)numAccesses);
+    for (int fc = 1; fc <= maxFrames; ++fc){
+        printf("%d,%lu,%f\n", fc, faults[fc],
+                  (double)faults[fc] / (double)numAccesses);
+    }
 
     // TODO: Free your PageQueue and the faults[] array,
     //       then close the file.
+    pqFree(LRUqueue);
+    free(faults);
+    fclose(ifp);
 
     return 0;
 }
